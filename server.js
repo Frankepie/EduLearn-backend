@@ -56,6 +56,8 @@ const discussionRoutes =
   const notificationRoutes =
   require("./routes/notificationRoutes");
 const aiRoutes = require("./routes/aiRoutes");
+const communicationRoutes =
+  require("./routes/communicationRoutes");
 
 const app = express();
 
@@ -159,6 +161,10 @@ app.use(
 app.use(
   "/api/ai",
   aiRoutes
+);
+app.use(
+  "/api/communication",
+  communicationRoutes
 );
 app.listen(PORT, () => {
 
