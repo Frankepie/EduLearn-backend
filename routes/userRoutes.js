@@ -1,13 +1,55 @@
 const express = require("express");
-
+const {
+  getMyProfile,
+  updateMyProfile
+} = require("../controllers/userController");
 const User = require("../models/User");
 
 const protect =
   require("../middleware/authMiddleware");
 
 const router = express.Router();
+const multer = require("multer");
+const upload =
+  multer({
+    storage: multer.memoryStorage(),
 
+    limits: {
+      fileSize:
+        5 * 1024 * 1024
+    },
 
+    fileFilter:
+      (req, file, cb) => {
+
+        const allowedTypes = [
+          "image/jpeg",
+          "image/png",
+          "image/jpg",
+          "image/webp"
+        ];
+
+        if (
+          allowedTypes.includes(
+            file.mimetype
+          )
+        ) {
+
+          cb(null, true);
+
+        } else {
+
+          cb(
+            new Error(
+              "Only JPEG, PNG, JPG and WebP images are allowed"
+            ),
+            false
+          );
+
+        }
+
+      }
+  });
 // =====================================
 // GET ALL INSTRUCTORS
 // PUBLIC ROUTE
@@ -56,24 +98,26 @@ router.get(
   }
 );
 
-
 // =====================================
-// PROTECTED PROFILE
+// GET MY PROFILE
 // =====================================
 
 router.get(
   "/profile",
   protect,
-  (req, res) => {
+  getMyProfile
+);
 
-    res.json({
-      message:
-        "Protected profile route works",
 
-      user: req.user
-    });
+// =====================================
+// UPDATE MY PROFILE
+// =====================================
 
-  }
+router.put(
+  "/profile",
+  protect,
+  upload.single("profileImage"),
+  updateMyProfile
 );
 
 

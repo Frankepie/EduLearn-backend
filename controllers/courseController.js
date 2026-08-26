@@ -1,6 +1,7 @@
 const Course = require("../models/Course");
 const Enrollment = require("../models/Enrollment");
-
+const uploadToCloudinary =
+  require("../utils/uploadToCloudinary");
 
 // =====================================
 // CREATE COURSE
@@ -24,15 +25,32 @@ const createCourse = async (
           "Title, description and category are required"
       });
     }
+     let imageUrl = "";
+
+
+    if (req.file) {
+
+      const result =
+        await uploadToCloudinary(
+          req.file.buffer
+        );
+
+      imageUrl =
+        result.secure_url;
+
+    }
     const course =
       await Course.create({
         title,
         description,
         category,
-        level,
+        level:
+        level || "Beginner",
         duration,
-        price,
-        image,
+        price:
+        Number(price || 0),
+        image:
+         imageUrl,
         instructor:
           req.user.id
       });

@@ -4,8 +4,15 @@ const Lesson =
 const Module =
   require("../models/Module");
 
+const {
+  uploadVideoToCloudinary
+} =
+  require("../utils/uploadToCloudinary");
 
+
+// =====================================
 // CREATE LESSON
+// =====================================
 
 const createLesson =
   async (req, res) => {
@@ -15,7 +22,6 @@ const createLesson =
       const {
         title,
         content,
-        videoUrl,
         duration,
         order,
         module
@@ -43,9 +49,7 @@ const createLesson =
 
 
       const moduleExists =
-        await Module.findById(
-          module
-        );
+        await Module.findById(module);
 
 
       if (!moduleExists) {
@@ -58,18 +62,43 @@ const createLesson =
       }
 
 
+      let videoUrl = "";
+
+
+      /*
+       * =================================
+       * UPLOAD VIDEO TO CLOUDINARY
+       * =================================
+       */
+
+      if (req.file) {
+
+        const result =
+          await uploadVideoToCloudinary(
+            req.file.buffer
+          );
+
+        videoUrl =
+          result.secure_url;
+
+      }
+
+
       const lesson =
         await Lesson.create({
 
           title,
 
-          content,
+          content:
+            content || "",
 
           videoUrl,
 
-          duration,
+          duration:
+            Number(duration) || 0,
 
-          order,
+          order:
+            Number(order) || 1,
 
           module
 
@@ -87,6 +116,11 @@ const createLesson =
 
     } catch (error) {
 
+      console.error(
+        "Create lesson error:",
+        error
+      );
+
       res.status(500).json({
 
         message:
@@ -101,7 +135,9 @@ const createLesson =
 
   };
 
+// =====================================
 // GET LESSONS BY MODULE
+// =====================================
 
 const getModuleLessons =
   async (req, res) => {
@@ -133,10 +169,14 @@ const getModuleLessons =
 
       const lessons =
         await Lesson.find({
+
           module: moduleId
+
         })
         .sort({
+
           order: 1
+
         });
 
 
@@ -153,32 +193,68 @@ const getModuleLessons =
           })
         );
 
-// course + module context for edulearn ai
-     res.json({
 
-  lessons: lessonsWithCourse,
+      // --------------------------------
+      // COURSE + MODULE CONTEXT
+      // FOR EDULEARN AI
+      // --------------------------------
 
-  module: {
-    _id: module._id,
-    title: module.title,
-    description: module.description,
-    order: module.order
-  },
+      res.json({
 
-  course: module.course
-    ? {
-        _id: module.course._id,
-        title: module.course.title,
-        description: module.course.description,
-        category: module.course.category,
-        level: module.course.level,
-        duration: module.course.duration
-      }
-    : null
+        lessons:
+          lessonsWithCourse,
 
-});
+        module: {
+
+          _id:
+            module._id,
+
+          title:
+            module.title,
+
+          description:
+            module.description,
+
+          order:
+            module.order
+
+        },
+
+        course:
+          module.course
+
+            ? {
+
+                _id:
+                  module.course._id,
+
+                title:
+                  module.course.title,
+
+                description:
+                  module.course.description,
+
+                category:
+                  module.course.category,
+
+                level:
+                  module.course.level,
+
+                duration:
+                  module.course.duration
+
+              }
+
+            : null
+
+      });
 
     } catch (error) {
+
+      console.error(
+        "Get lessons error:",
+        error
+      );
 
       res.status(500).json({
 
@@ -195,7 +271,9 @@ const getModuleLessons =
   };
 
 
+// =====================================
 // UPDATE LESSON
+// =====================================
 
 const updateLesson =
   async (req, res) => {
@@ -225,26 +303,51 @@ const updateLesson =
       }
 
 
+      // -------------------------------
+      // UPDATE TEXT FIELDS
+      // -------------------------------
+
       lesson.title =
         req.body.title ??
         lesson.title;
+
 
       lesson.content =
         req.body.content ??
         lesson.content;
 
-      lesson.videoUrl =
-        req.body.videoUrl ??
-        lesson.videoUrl;
 
       lesson.duration =
         req.body.duration ??
         lesson.duration;
 
+
       lesson.order =
         req.body.order ??
         lesson.order;
 
+
+      // -------------------------------
+      // REPLACE VIDEO IF NEW FILE
+      // PROVIDED
+      // -------------------------------
+
+      if (req.file) {
+
+        const result =
+          await uploadVideoToCloudinary(
+            req.file.buffer
+          );
+
+        lesson.videoUrl =
+          result.secure_url;
+
+      }
+
+
+      // -------------------------------
+      // SAVE
+      // -------------------------------
 
       await lesson.save();
 
@@ -259,6 +362,11 @@ const updateLesson =
       });
 
     } catch (error) {
+
+      console.error(
+        "Update lesson error:",
+        error
+      );
 
       res.status(500).json({
 
@@ -275,7 +383,9 @@ const updateLesson =
   };
 
 
+// =====================================
 // DELETE LESSON
+// =====================================
 
 const deleteLesson =
   async (req, res) => {
@@ -318,17 +428,35 @@ const deleteLesson =
       });
 
     } catch (error) {
+
+      console.error(
+        "Delete lesson error:",
+        error
+      );
+
       res.status(500).json({
+
         message:
           "Failed to delete lesson",
+
         error:
           error.message
+
       });
+
     }
+
   };
+
+
 module.exports = {
+
   createLesson,
+
   getModuleLessons,
+
   updateLesson,
+
   deleteLesson
+
 };

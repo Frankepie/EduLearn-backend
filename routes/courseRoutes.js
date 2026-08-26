@@ -1,4 +1,5 @@
 const express = require("express");
+const upload = require("../middleware/upload");
 const {
   createCourse,
   getCourses,
@@ -56,6 +57,7 @@ router.delete(
 router.post(
   "/",
   protect,
+  upload.single("image"),
   createCourse
 );
 
