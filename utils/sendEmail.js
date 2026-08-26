@@ -6,15 +6,15 @@ const transporter = nodemailer.createTransport({
   secure: false,
   requireTLS: true,
 
-  // Force IPv4 because Render was trying to reach Gmail
-  // through IPv6 and returning ENETUNREACH.
   family: 4,
 
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
-
+  connectionTimeout:30000,
+  greetingTimeout:30000,
+  socketTimeout:30000,
   tls: {
     minVersion: "TLSv1.2",
   },
