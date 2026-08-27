@@ -2,85 +2,62 @@ require("dotenv").config();
 
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
+const readline = require("readline-sync");
 
-const User = require("./models/User");
+const Admin = require("./models/Admin");
 
 const createAdmin = async () => {
 
   try {
 
-    await mongoose.connect(
-      process.env.MONGO_URI
+    await mongoose.connect(process.env.MONGO_URI);
+
+    console.log("MongoDB connected");
+
+    const name = readline.question("Admin name: ");
+    const email = readline.question("Admin email: ");
+    const password = readline.question(
+      "Admin password: ",
+      {
+        hideEchoBack: true
+      }
     );
 
-    console.log(
-      "MongoDB connected"
-    );
+    const existingAdmin = await Admin.findOne({
+      email: email.toLowerCase()
+    });
 
-
-    const email =
-      "admin@edulearn.com";
-
-    const password =
-      "Admin12345";
-
-
-    const existingUser =
-      await User.findOne({
-        email
-      });
-
-
-    if (existingUser) {
-
-      existingUser.role = "admin";
-
-      await existingUser.save();
+    if (existingAdmin) {
 
       console.log(
-        "Existing user converted to admin."
+        "An admin with this email already exists."
       );
 
-    } else {
-
-      const hashedPassword =
-        await bcrypt.hash(
-          password,
-          10
-        );
-
-
-      await User.create({
-
-        name: "EduLearn Admin",
-
-        email,
-
-        password:
-          hashedPassword,
-
-        role: "admin"
-
-      });
-
-
-      console.log(
-        "Admin account created successfully."
-      );
-
+      process.exit(0);
     }
 
+    const hashedPassword =
+      await bcrypt.hash(password, 10);
+
+    await Admin.create({
+
+      name,
+
+      email: email.toLowerCase(),
+
+      password: hashedPassword,
+
+      role: "admin"
+
+    });
 
     console.log(
-      "Email:",
-      email
+      "Admin account created successfully."
     );
 
     console.log(
-      "Password:",
-      password
+      "Admin:", email
     );
-
 
     process.exit(0);
 
@@ -92,10 +69,7 @@ const createAdmin = async () => {
     );
 
     process.exit(1);
-
   }
-
 };
-
 
 createAdmin();
