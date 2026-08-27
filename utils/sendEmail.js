@@ -5,23 +5,14 @@ const nodemailer = require("nodemailer");
 // =====================================
 
 const transporter = nodemailer.createTransport({
-
-  host: "smtp-relay.brevo.com",
-
-  port: 587,
-
+  host: process.env.BREVO_SMTP_HOST,
+  port: Number(process.env.BREVO_SMTP_PORT) || 587,
   secure: false,
 
   auth: {
-
-    user:
-      process.env.BREVO_SMTP_USER,
-
-    pass:
-      process.env.BREVO_SMTP_KEY
-
+    user: process.env.BREVO_SMTP_USER,
+    pass: process.env.BREVO_SMTP_KEY
   }
-
 });
 
 
@@ -37,28 +28,23 @@ const sendEmail = async ({
 
   try {
 
-    const info =
-      await transporter.sendMail({
+    const info = await transporter.sendMail({
 
-        from: {
-          name:
-            process.env.MAIL_FROM_NAME ||
-            "EduLearn",
+      from: {
+        name: "EduLearn",
+        address: process.env.MAIL_FROM
+      },
 
-          address:
-            process.env.MAIL_FROM
-        },
+      to,
 
-        to,
+      subject,
 
-        subject,
+      html
 
-        html
-
-      });
+    });
 
     console.log(
-      "Brevo email sent:",
+      "Email sent successfully:",
       info.messageId
     );
 
@@ -67,7 +53,7 @@ const sendEmail = async ({
   } catch (error) {
 
     console.error(
-      "Brevo SMTP error:",
+      "Brevo SMTP email error:",
       error
     );
 

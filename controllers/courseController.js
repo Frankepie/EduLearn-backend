@@ -1,8 +1,6 @@
 const Course = require("../models/Course");
 const Enrollment = require("../models/Enrollment");
-const uploadToCloudinary =
-  require("../utils/uploadToCloudinary");
-
+const { uploadImageToCloudinary } = require("../utils/uploadToCloudinary");
 // =====================================
 // CREATE COURSE
 // =====================================
@@ -30,10 +28,7 @@ const createCourse = async (
 
     if (req.file) {
 
-      const result =
-        await uploadToCloudinary(
-          req.file.buffer
-        );
+     const result = await uploadImageToCloudinary(req.file.buffer);
 
       imageUrl =
         result.secure_url;
