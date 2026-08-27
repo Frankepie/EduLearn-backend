@@ -1,23 +1,36 @@
 const express = require("express");
 
-const router =
-  express.Router();
-
-const {
-  getAdminDashboard
-} = require(
-  "../controllers/adminController"
-);
+const router = express.Router();
 
 const protect =
-  require(
-    "../middleware/authMiddleware"
-  );
+  require("../middleware/authMiddleware");
 
-const adminOnly =
-  require(
-    "../middleware/adminMiddleware"
-  );
+const {
+  getAdminDashboard,
+  getAdminCourses,
+  getAdminEnrollments,
+  getAdminCertificates
+} = require("../controllers/adminController");
+
+
+// ==========================================
+// ADMIN AUTHORIZATION
+// ==========================================
+
+const adminOnly = (req, res, next) => {
+
+  if (
+    !req.user ||
+    req.user.role?.toLowerCase() !== "admin"
+  ) {
+    return res.status(403).json({
+      success: false,
+      message: "Admin access required."
+    });
+  }
+
+  next();
+};
 
 
 // ==========================================
@@ -29,6 +42,42 @@ router.get(
   protect,
   adminOnly,
   getAdminDashboard
+);
+
+
+// ==========================================
+// ADMIN COURSES
+// ==========================================
+
+router.get(
+  "/courses",
+  protect,
+  adminOnly,
+  getAdminCourses
+);
+
+
+// ==========================================
+// ADMIN ENROLLMENTS
+// ==========================================
+
+router.get(
+  "/enrollments",
+  protect,
+  adminOnly,
+  getAdminEnrollments
+);
+
+
+// ==========================================
+// ADMIN CERTIFICATES
+// ==========================================
+
+router.get(
+  "/certificates",
+  protect,
+  adminOnly,
+  getAdminCertificates
 );
 
 
