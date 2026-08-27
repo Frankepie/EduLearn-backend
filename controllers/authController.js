@@ -591,17 +591,23 @@ const resendRegistrationOTP =
       await record.save();
 
 
-      await sendOTPEmail({
+      await sendEmail({
+  to: normalizedEmail,
+  subject: "Your EduLearn Verification Code",
+  html: `
+    <div style="font-family: Arial, sans-serif;">
+      <h2>Welcome to EduLearn</h2>
 
-        email: normalizedEmail,
+      <p>Your registration verification code is:</p>
 
-        otp,
+      <h1>${otp}</h1>
 
-        purpose:
-          "registration"
+      <p>This code will expire in 10 minutes.</p>
 
-      });
-
+      <p>If you did not create an EduLearn account, you can ignore this email.</p>
+    </div>
+  `
+});
 
       return res.status(200).json({
 

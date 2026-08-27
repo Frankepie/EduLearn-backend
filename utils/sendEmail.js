@@ -1,67 +1,89 @@
-const nodemailer = require("nodemailer");
+const https = require("https");
 
 // =====================================
-// BREVO SMTP TRANSPORTER
+// SEND EMAIL THROUGH BREVO API
 // =====================================
 
-const transporter = nodemailer.createTransport({
-  host: process.env.BREVO_SMTP_HOST,
-  port: Number(process.env.BREVO_SMTP_PORT) || 587,
-  secure: false,
-
-  auth: {
-    user: process.env.BREVO_SMTP_USER,
-    pass: process.env.BREVO_SMTP_KEY
-  }
-});
-
-
-// =====================================
-// SEND EMAIL
-// =====================================
-
-const sendEmail = async ({
-  to,
-  subject,
-  html
-}) => {
-
+const sendEmail = async ({ to, subject, html }) => {
   try {
-
-    const info = await transporter.sendMail({
-
-      from: {
+    const data = JSON.stringify({
+      sender: {
         name: "EduLearn",
-        address: process.env.MAIL_FROM
+        email: process.env.MAIL_FROM,
       },
-
-      to,
-
+      to: [
+        {
+          email: to,
+        },
+      ],
       subject,
+      htmlContent: html,
+    });
 
-      html
+    const options = {
+      hostname: "api.brevo.com",
+      path: "/v3/smtp/email",
+      method: "POST",
+      headers: {
+        "api-key": process.env.BREVO_API_KEY,
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(data),
+      },
+    };
 
+    const result = await new Promise((resolve, reject) => {
+      const request = https.request(options, (response) => {
+        let body = "";
+
+        response.on("data", (chunk) => {
+          body += chunk;
+        });
+
+        response.on("end", () => {
+          let parsedBody;
+
+          try {
+            parsedBody = body ? JSON.parse(body) : {};
+          } catch {
+            parsedBody = body;
+          }
+
+          if (
+            response.statusCode >= 200 &&
+            response.statusCode < 300
+          ) {
+            resolve({
+              statusCode: response.statusCode,
+              body: parsedBody,
+            });
+          } else {
+            reject(
+              new Error(
+                `Brevo API error ${response.statusCode}: ${body}`
+              )
+            );
+          }
+        });
+      });
+
+      request.on("error", (error) => {
+        reject(error);
+      });
+
+      request.write(data);
+      request.end();
     });
 
     console.log(
-      "Email sent successfully:",
-      info.messageId
+      "Email sent successfully through Brevo:",
+      result.body
     );
 
-    return info;
-
+    return result;
   } catch (error) {
-
-    console.error(
-      "Brevo SMTP email error:",
-      error
-    );
-
+    console.error("Brevo API email error:", error);
     throw error;
-
   }
-
 };
-
 
 module.exports = sendEmail;
