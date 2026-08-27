@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 
 const User = require("../models/User");
+const Admin = require("../models/Admin");
 const OTP = require("../models/OTP");
 
 const sendEmail = require("../utils/sendEmail");
@@ -635,10 +636,11 @@ const resendRegistrationOTP =
   };
 
 // ===============================
-// LOGIN USER
+// LOGIN USER / ADMIN
 // ===============================
 
 const loginUser = async (req, res) => {
+
   try {
 
     const {
@@ -646,23 +648,110 @@ const loginUser = async (req, res) => {
       password
     } = req.body;
 
+
     if (!email || !password) {
+
       return res.status(400).json({
         message:
           "Email and password are required"
       });
+
     }
 
-    const user = await User.findOne({
-      email
-    });
+
+    const normalizedEmail =
+      email.trim().toLowerCase();
+
+
+    // =================================
+    // CHECK ADMIN COLLECTION FIRST
+    // =================================
+
+    const admin =
+      await Admin.findOne({
+        email: normalizedEmail
+      });
+
+
+    if (admin) {
+
+      const passwordMatch =
+        await bcrypt.compare(
+          password,
+          admin.password
+        );
+
+
+      if (!passwordMatch) {
+
+        return res.status(401).json({
+          message:
+            "Invalid email or password"
+        });
+
+      }
+
+
+      const token =
+        jwt.sign(
+          {
+            id: admin._id,
+            role: "admin"
+          },
+          process.env.JWT_SECRET,
+          {
+            expiresIn: "7d"
+          }
+        );
+
+
+      return res.status(200).json({
+
+        message:
+          "Login successful",
+
+        token,
+
+        user: {
+
+          id:
+            admin._id,
+
+          name:
+            admin.name,
+
+          email:
+            admin.email,
+
+          role:
+            "admin"
+
+        }
+
+      });
+
+    }
+
+
+    // =================================
+    // CHECK NORMAL USER COLLECTION
+    // =================================
+
+    const user =
+      await User.findOne({
+        email: normalizedEmail
+      });
+
 
     if (!user) {
+
       return res.status(401).json({
         message:
           "Invalid email or password"
       });
+
     }
+
 
     const passwordMatch =
       await bcrypt.compare(
@@ -670,39 +759,58 @@ const loginUser = async (req, res) => {
         user.password
       );
 
+
     if (!passwordMatch) {
+
       return res.status(401).json({
         message:
           "Invalid email or password"
       });
+
     }
 
-    const token = jwt.sign(
-      {
-        id: user._id,
-        role: user.role
-      },
-      process.env.JWT_SECRET,
-      {
-        expiresIn: "7d"
-      }
-    );
 
-    res.status(200).json({
+    const token =
+      jwt.sign(
+        {
+          id: user._id,
+          role: user.role
+        },
+        process.env.JWT_SECRET,
+        {
+          expiresIn: "7d"
+        }
+      );
 
-      message: "Login successful",
+
+    return res.status(200).json({
+
+      message:
+        "Login successful",
 
       token,
 
-    user: {
-  id: user._id,
-  name: user.name,
-  email: user.email,
-  role: user.role,
-  profileImage: user.profileImage
-}
+      user: {
+
+        id:
+          user._id,
+
+        name:
+          user.name,
+
+        email:
+          user.email,
+
+        role:
+          user.role,
+
+        profileImage:
+          user.profileImage
+
+      }
 
     });
+
 
   } catch (error) {
 
@@ -711,10 +819,14 @@ const loginUser = async (req, res) => {
       error
     );
 
-    res.status(500).json({
-      message: "Server error"
+
+    return res.status(500).json({
+      message:
+        "Server error"
     });
+
   }
+
 };
 
 

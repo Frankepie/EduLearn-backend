@@ -1,12 +1,20 @@
 const jwt = require("jsonwebtoken");
+
 const User = require("../models/User");
+const Admin = require("../models/Admin");
+
 
 const protect = async (req, res, next) => {
+
   try {
 
     let token;
 
-    // Check Authorization header
+
+    // =================================
+    // CHECK AUTHORIZATION HEADER
+    // =================================
+
     if (
       req.headers.authorization &&
       req.headers.authorization.startsWith("Bearer")
@@ -18,17 +26,26 @@ const protect = async (req, res, next) => {
     }
 
 
+    // =================================
+    // NO TOKEN
+    // =================================
+
     if (!token) {
 
       return res.status(401).json({
+
         message:
           "Not authorized. Please login."
+
       });
 
     }
 
 
-    // Verify token
+    // =================================
+    // VERIFY TOKEN
+    // =================================
+
     const decoded =
       jwt.verify(
         token,
@@ -36,7 +53,46 @@ const protect = async (req, res, next) => {
       );
 
 
-    // Find user
+    // =================================
+    // ADMIN
+    // =================================
+
+    if (decoded.role === "admin") {
+
+      const admin =
+        await Admin.findById(
+          decoded.id
+        ).select("-password");
+
+
+      if (!admin) {
+
+        return res.status(401).json({
+
+          message:
+            "Admin not found."
+
+        });
+
+      }
+
+
+      // Attach admin to request
+      req.user = admin;
+
+      // Make sure role is always admin
+      req.user.role = "admin";
+
+
+      return next();
+
+    }
+
+
+    // =================================
+    // NORMAL USER
+    // =================================
+
     const user =
       await User.findById(
         decoded.id
@@ -46,8 +102,10 @@ const protect = async (req, res, next) => {
     if (!user) {
 
       return res.status(401).json({
+
         message:
           "User not found."
+
       });
 
     }
@@ -59,7 +117,14 @@ const protect = async (req, res, next) => {
 
     next();
 
+
   } catch (error) {
+
+    console.error(
+      "Authentication error:",
+      error
+    );
+
 
     return res.status(401).json({
 
@@ -69,6 +134,7 @@ const protect = async (req, res, next) => {
     });
 
   }
+
 };
 
 
