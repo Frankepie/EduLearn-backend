@@ -1,3 +1,4 @@
+
 const User = require("../models/User");
 const Course = require("../models/Course");
 const Enrollment = require("../models/Enrollment");
@@ -9,6 +10,10 @@ const Certificate = require("../models/Certificate");
 
 const getAdminDashboard = async (req, res) => {
   try {
+    // ==========================================
+    // BASIC STATISTICS
+    // ==========================================
+
     const [
       totalUsers,
       totalStudents,
@@ -34,6 +39,150 @@ const getAdminDashboard = async (req, res) => {
       Certificate.countDocuments()
     ]);
 
+    // ==========================================
+    // USERS OVERVIEW — LAST 6 MONTHS
+    // ==========================================
+
+    const sixMonthsAgo = new Date();
+
+    sixMonthsAgo.setMonth(
+      sixMonthsAgo.getMonth() - 5
+    );
+
+    sixMonthsAgo.setDate(1);
+
+    sixMonthsAgo.setHours(
+      0,
+      0,
+      0,
+      0
+    );
+
+    const monthlyUsers = await User.aggregate([
+      {
+        $match: {
+          createdAt: {
+            $gte: sixMonthsAgo
+          }
+        }
+      },
+
+      {
+        $group: {
+          _id: {
+            year: {
+              $year: "$createdAt"
+            },
+
+            month: {
+              $month: "$createdAt"
+            }
+          },
+
+          count: {
+            $sum: 1
+          }
+        }
+      },
+
+      {
+        $sort: {
+          "_id.year": 1,
+          "_id.month": 1
+        }
+      }
+    ]);
+
+    // ==========================================
+    // BUILD LAST 6 MONTHS
+    // ==========================================
+
+    const usersOverview = [];
+
+    const monthNames = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec"
+    ];
+
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date();
+
+      date.setMonth(
+        date.getMonth() - i
+      );
+
+      const year =
+        date.getFullYear();
+
+      const month =
+        date.getMonth() + 1;
+
+      const found =
+        monthlyUsers.find(
+          (item) =>
+            item._id.year === year &&
+            item._id.month === month
+        );
+
+      usersOverview.push({
+        label:
+          monthNames[month - 1],
+
+        value:
+          found
+            ? found.count
+            : 0
+      });
+    }
+
+    // ==========================================
+    // COURSES BY CATEGORY
+    // ==========================================
+
+    const coursesByCategory =
+      await Course.aggregate([
+        {
+          $group: {
+            _id: "$category",
+
+            count: {
+              $sum: 1
+            }
+          }
+        },
+
+        {
+          $sort: {
+            count: -1
+          }
+        }
+      ]);
+
+    const formattedCategories =
+      coursesByCategory.map(
+        (item) => ({
+          label:
+            item._id || "Other",
+
+          value:
+            item.count
+        })
+      );
+
+    // ==========================================
+    // RESPONSE
+    // ==========================================
+
     return res.status(200).json({
       success: true,
 
@@ -44,7 +193,12 @@ const getAdminDashboard = async (req, res) => {
         totalCourses,
         totalEnrollments,
         totalCertificates
-      }
+      },
+
+      usersOverview,
+
+      coursesByCategory:
+        formattedCategories
     });
 
   } catch (error) {
@@ -55,7 +209,52 @@ const getAdminDashboard = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Failed to load admin dashboard"
+
+      message:
+        "Failed to load admin dashboard",
+
+      error:
+        error.message
+    });
+  }
+};
+
+
+// ==========================================
+// GET ALL USERS
+// ==========================================
+
+const getAdminUsers = async (req, res) => {
+  try {
+    const users =
+      await User.find()
+        .select(
+          "name fullName email role profileImage createdAt"
+        )
+        .sort({
+          createdAt: -1
+        })
+        .lean();
+
+    return res.status(200).json({
+      success: true,
+      users
+    });
+
+  } catch (error) {
+    console.error(
+      "Admin users error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+
+      message:
+        "Failed to load users",
+
+      error:
+        error.message
     });
   }
 };
@@ -67,36 +266,20 @@ const getAdminDashboard = async (req, res) => {
 
 const getAdminCourses = async (req, res) => {
   try {
-    const courses = await Course.find()
-      .populate(
-        "instructor",
-        "name email"
-      )
-      .sort({
-        createdAt: -1
-      })
-      .lean();
-
-    // Add enrollment count to every course
-    const coursesWithStats =
-      await Promise.all(
-        courses.map(async (course) => {
-
-          const enrollmentCount =
-            await Enrollment.countDocuments({
-              course: course._id
-            });
-
-          return {
-            ...course,
-            enrollmentCount
-          };
+    const courses =
+      await Course.find()
+        .populate(
+          "instructor",
+          "name fullName email"
+        )
+        .sort({
+          createdAt: -1
         })
-      );
+        .lean();
 
     return res.status(200).json({
       success: true,
-      courses: coursesWithStats
+      courses
     });
 
   } catch (error) {
@@ -107,7 +290,12 @@ const getAdminCourses = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Failed to load courses"
+
+      message:
+        "Failed to load courses",
+
+      error:
+        error.message
     });
   }
 };
@@ -123,20 +311,16 @@ const getAdminEnrollments = async (req, res) => {
       await Enrollment.find()
         .populate(
           "student",
-          "name email profileImage"
+          "name fullName email"
         )
-        .populate({
-          path: "course",
-          select:
-            "title category level instructor",
-          populate: {
-            path: "instructor",
-            select: "name email"
-          }
-        })
+        .populate(
+          "course",
+          "title image category"
+        )
         .sort({
           createdAt: -1
-        });
+        })
+        .lean();
 
     return res.status(200).json({
       success: true,
@@ -151,7 +335,12 @@ const getAdminEnrollments = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Failed to load enrollments"
+
+      message:
+        "Failed to load enrollments",
+
+      error:
+        error.message
     });
   }
 };
@@ -167,20 +356,16 @@ const getAdminCertificates = async (req, res) => {
       await Certificate.find()
         .populate(
           "student",
-          "name email profileImage"
+          "name fullName email"
         )
-        .populate({
-          path: "course",
-          select:
-            "title category instructor",
-          populate: {
-            path: "instructor",
-            select: "name email"
-          }
-        })
+        .populate(
+          "course",
+          "title"
+        )
         .sort({
-          issuedAt: -1
-        });
+          createdAt: -1
+        })
+        .lean();
 
     return res.status(200).json({
       success: true,
@@ -195,18 +380,24 @@ const getAdminCertificates = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Failed to load certificates"
+
+      message:
+        "Failed to load certificates",
+
+      error:
+        error.message
     });
   }
 };
 
 
 // ==========================================
-// EXPORT
+// EXPORT CONTROLLERS
 // ==========================================
 
 module.exports = {
   getAdminDashboard,
+  getAdminUsers,
   getAdminCourses,
   getAdminEnrollments,
   getAdminCertificates

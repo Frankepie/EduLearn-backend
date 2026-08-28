@@ -7,6 +7,7 @@ const protect =
 
 const {
   getAdminDashboard,
+  getAdminUsers,
   getAdminCourses,
   getAdminEnrollments,
   getAdminCertificates
@@ -68,7 +69,16 @@ router.get(
   getAdminEnrollments
 );
 
+// ==========================================
+// ADMIN USERS
+// ==========================================
 
+router.get(
+  "/users",
+  protect,
+  adminOnly,
+  getAdminUsers
+);
 // ==========================================
 // ADMIN CERTIFICATES
 // ==========================================
